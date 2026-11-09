@@ -221,3 +221,26 @@ PowerShell 脚本。两边通过一个交接文件通信，谁也不猜对方的
   机器上计划任务被策略拒绝（`Access is denied.`），此时自动落到 WMI；三级都不通会直接
   报错并**保持 DSH 运行**，不会出现「关掉了但起不来」；
 - 桌面端重启后窗口位置、大小由 DSH 自己决定，插件不介入。
+
+## 已知风险：重启会让 cookie 堆积，最终起不来（HTTP 431）
+
+DSH 桌面端每次启动都会往 `%APPDATA%\@deepseek-ai\dsh-desktop\Network\Cookies` 写一份新的
+身份 cookie，旧的不清理。重启次数一多，请求头会超过上限，下一次启动直接失败：
+
+```
+Error: desktop welcome: Web authentication failed
+```
+
+对应的 HTTP 状态码是 **431 Request Header Fields Too Large**。这个失败发生在
+`phase: startup`，窗口根本出不来，只能看到崩溃对话框。
+
+**本插件会加速这一天的到来。** 它存在的意义就是让 agent 自己发起重启，使用频率天然高于
+手动重启，所以这是它唯一的实质性副作用——写在这里，不藏在 CHANGELOG 里。
+
+自救（三步）：
+
+1. 退出 DSH（包括残留进程）；
+2. 删除 `%APPDATA%\@deepseek-ai\dsh-desktop\Network\Cookies`；
+3. 重新启动。会掉登录态，需要重新登录一次。
+
+不能接受这个风险的话，请改用更轻的重启方式，或者干脆手动重启——不要装它。
